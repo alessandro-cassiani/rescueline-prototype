@@ -17,7 +17,7 @@ def main() -> None:
             commsHandler.update()
 
             if not hasSent:
-                hasSent = commsHandler.sendPacket(Commands.START_LED_BLINK.value, len(toSend), toSend)
+                hasSent = commsHandler.sendPacket(Commands.STOP_LED_BLINK.value, len(toSend), toSend)
                 if hasSent: print("Sent.\n")
             
             receivedPacket = commsHandler.readPacket()
