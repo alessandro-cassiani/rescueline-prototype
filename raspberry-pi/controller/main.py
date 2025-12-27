@@ -2,8 +2,8 @@ from lib import comms
 from enum import Enum
 
 class Commands(Enum):
-    START_LED_BLINK = 'b',
-    STOP_LED_BLINK = 'o',
+    START_LED_BLINK = 'b'
+    STOP_LED_BLINK = 'o'
     RETURN_SENT_PACKET = 'r'
 
 def main() -> None:
@@ -17,7 +17,7 @@ def main() -> None:
             commsHandler.update()
 
             if not hasSent:
-                hasSent = commsHandler.sendPacket(Commands.RETURN_SENT_PACKET.value, len(toSend), toSend)
+                hasSent = commsHandler.sendPacket(Commands.START_LED_BLINK.value, len(toSend), toSend)
                 if hasSent: print("Sent.\n")
             
             receivedPacket = commsHandler.readPacket()
