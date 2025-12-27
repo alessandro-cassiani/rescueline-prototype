@@ -75,18 +75,21 @@ class Communication:
 
         return True
     
+    # Stripping the trailing x00 character BEFORE decoding with
+    # the cobs library is extremely important, as it is made to consider
+    # it as part of the payload if not removed
     def update(self) -> None:
         if (self.__ser.in_waiting <= 0):
             return
         
         bufferIn = self.__ser.read_until(b"\x00")
-        print("Raw received:", list(bufferIn))
-        print("Raw received wit x00 removed: ", bufferIn[:-1])
+        #print("Raw received:", list(bufferIn))
+        #print("Raw received wit x00 removed: ", bufferIn[:-1])
         try:
             decoded = cobs.decode(bufferIn[:-1])
         except Exception:
             return
-        print("Decoded: ", list(decoded))
+        #print("Decoded: ", list(decoded))
         
         self.__packetBuffer = decoded
         self.__packetLength = len(decoded)
@@ -96,29 +99,29 @@ class Communication:
         if not self.__hasPacket: return None
         if self.__packetLength < 4: return None
 
-        print("Passed hasPacket test")
+        #print("Passed hasPacket test")
 
         cmd, length = struct.unpack(">BB", self.__packetBuffer[:2])
         length = int(length)
         cmd = int(cmd)
 
-        print("Command and length", cmd, length)
+        #print("Command and length", cmd, length)
 
         if length + 4 != self.__packetLength: return None
 
-        print("Passed length equal test")
+        #print("Passed length equal test")
 
         payload = list(struct.unpack(f">{length}B", self.__packetBuffer[2:(2 + length)]))
         message = [cmd, length] + payload
 
-        print("Payload unpacked")
-        print(f"Message: {list(message)}")
+        #print("Payload unpacked")
+        #print(f"Message: {list(message)}")
 
         crcReceived = self.__packetBuffer[-2] << 8 | (self.__packetBuffer[-1] &0xFF) & 0xFFFF
 
         crcRecalculated = crc16_lsb(message, length + 2)
 
-        print(f"Crc received: {crcReceived}, Crc recalculated: {crcRecalculated}")
+        #print(f"Crc received: {crcReceived}, Crc recalculated: {crcRecalculated}")
         if crcReceived != crcRecalculated: 
             print("Crc error")
             return None

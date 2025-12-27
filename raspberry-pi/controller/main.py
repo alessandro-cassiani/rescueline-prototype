@@ -1,5 +1,6 @@
 from lib import comms
 from enum import Enum
+import time
 
 class Commands(Enum):
     START_LED_BLINK = 'b'
@@ -29,6 +30,7 @@ def main() -> None:
                 print(f"cmd: {cmd}\t length: {length}\n")
                 print(f"payload: {payload}")
                 hasSent = False
+                time.sleep(0.5)
 
     except KeyboardInterrupt:
         commsHandler.endSerial()
