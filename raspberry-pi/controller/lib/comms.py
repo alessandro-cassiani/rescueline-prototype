@@ -1,6 +1,7 @@
 import serial
 from cobs import cobs
 import struct
+import time
 
 # Set true to enable debug
 DEBUG = False
@@ -50,16 +51,19 @@ class Communication:
     def __init__(self, port="/dev/ttyACM0", speed=115200) -> None:
         self.__port = port
         self.__speed = speed
-        self.__ser = serial.Serial(port, speed)
+        self.__ser = serial.Serial(port, speed, timeout=1.0)
         self.__packetBuffer = b""
         self.__hasPacket = False
         self.__packetLength = 0
+
+        time.sleep(3)
+        self.__ser.reset_input_buffer()
     
-    def sendPacket(self, cmd: int, length: int, payload: list[int]) -> bool:
+    def sendPacket(self, cmd: str, length: int, payload: list[int]) -> bool:
         if length + 4 >= MAX_BUFFER_LENGTH:
             return False
         
-        buffer = [cmd, length] + payload
+        buffer = [ord(cmd), length] + payload
 
         crc = crc16_lsb(buffer, length + 2)
 
@@ -106,12 +110,15 @@ class Communication:
 
         return [cmd, length] + payload
     
+    def endSerial(self) -> None:
+        self.__ser.close()
     
-def main() -> None:
-    if DEBUG:
-        debug_crc()
+    
+#def main() -> None:
+#    if DEBUG:
+#        debug_crc()
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()
 
 
