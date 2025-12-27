@@ -1,10 +1,14 @@
+import serial
+from cobs import cobs
+import struct
 
-# Set true enable debug
+# Set true to enable debug
 DEBUG = False
 
 CRC_16_CCITT_POLYNOMIAL = 0x1021 & 0xFFFF
 CRC_16_CCITT_POLYNOMIAL_REVERSED = 0x8408 & 0xFFFF
 BYTE_SIZE = 8
+MAX_BUFFER_LENGTH = 255
 
 def crc16_msb(data: list[int], length: int) -> int:
     rem = 0xFFFF
@@ -42,6 +46,67 @@ def debug_crc() -> None:
 
     print(crc_msb, crc_lsb)
 
+class Communication:
+    def __init__(self, port="/dev/ttyACM0", speed=115200) -> None:
+        self.__port = port
+        self.__speed = speed
+        self.__ser = serial.Serial(port, speed)
+        self.__packetBuffer = b""
+        self.__hasPacket = False
+        self.__packetLength = 0
+    
+    def sendPacket(self, cmd: int, length: int, payload: list[int]) -> bool:
+        if length + 4 >= MAX_BUFFER_LENGTH:
+            return False
+        
+        buffer = [cmd, length] + payload
+
+        crc = crc16_lsb(buffer, length + 2)
+
+        buffer = bytes(buffer)
+        buffer += crc.to_bytes(2, byteorder="big")
+
+        encodedBuf = cobs.encode(buffer)
+        self.__ser.write(encodedBuf)
+
+        return True
+    
+    def update(self) -> None:
+        if (self.__ser.in_waiting <= 0):
+            return
+        
+        bufferIn = self.__ser.read_until(b"\x00")
+        try:
+            decoded = cobs.decode(bufferIn)
+        except Exception:
+            return
+        
+        self.__packetBuffer = decoded
+        self.__packetLength = len(decoded)
+        self.__hasPacket = True
+
+    def readPacket(self) -> None | list[int]:
+        if not self.__hasPacket: return None
+        if self.__packetLength < 4: return None
+
+        cmd, length = struct.unpack(">BB", self.__packetBuffer[:2])
+        length = int(length)
+        cmd = int(cmd)
+
+        if length + 4 != self.__packetLength: return None
+
+        payload = list(struct.unpack(f">{length}B", self.__packetBuffer[2:(2 + length)]))
+
+        crcReceived = self.__packetBuffer[-2] << 8 | (self.__packetBuffer[-1] &0xFF) & 0xFFFF
+
+        crcRecalculated = crc16_lsb(payload, length)
+        if crcReceived != crcRecalculated: return None
+
+        self.__hasPacket = False
+
+        return [cmd, length] + payload
+    
+    
 def main() -> None:
     if DEBUG:
         debug_crc()
