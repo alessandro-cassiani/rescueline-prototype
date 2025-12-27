@@ -104,7 +104,9 @@ class Communication:
         crcReceived = self.__packetBuffer[-2] << 8 | (self.__packetBuffer[-1] &0xFF) & 0xFFFF
 
         crcRecalculated = crc16_lsb(payload, length)
-        if crcReceived != crcRecalculated: return None
+        if crcReceived != crcRecalculated: 
+            print("Crc error")
+            return None
 
         self.__hasPacket = False
 
