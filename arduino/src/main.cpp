@@ -1,20 +1,20 @@
 #include <Arduino.h>
+#include "comms.h"
 
-int counter = 0;
+Communication commsHandler;
 
 void setup() {
-	Serial.begin(115200);
-	while (!Serial) {}
-
-	Serial.setTimeout(10); // 10 milliseconds should work
+	commsHandler.initCom(115200);
 }
 
 void loop() {
-	if (Serial.available() > 0) { // func return number of bytes in the buffer
-		// extremely important to use single quotes for the newline char
-		String msg = Serial.readStringUntil('\n');
-		// Check the serial LED to see if the message has arrived
-        msg = msg + " " + String(counter++);
-        Serial.println(msg);
-	}
+	commsHandler.update();
+
+	uint8_t cmd = 0;
+	uint8_t length = 0;
+	uint8_t payload[MAX_BUFFER_LENGTH];
+
+	bool readStatus = commsHandler.readPacket(&cmd, &length, payload);
+
+	delay(1000);
 }
