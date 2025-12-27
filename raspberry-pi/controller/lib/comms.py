@@ -70,7 +70,7 @@ class Communication:
         buffer = bytes(buffer)
         buffer += crc.to_bytes(2, byteorder="big")
 
-        encodedBuf = cobs.encode(buffer) + b"\0x00"
+        encodedBuf = cobs.encode(buffer) + b"\x00"
         self.__ser.write(encodedBuf)
 
         return True
@@ -80,6 +80,7 @@ class Communication:
             return
         
         bufferIn = self.__ser.read_until(b"\x00")
+        print("Raw received:", list(bufferIn))
         try:
             decoded = cobs.decode(bufferIn)
         except Exception:
