@@ -81,8 +81,9 @@ class Communication:
         
         bufferIn = self.__ser.read_until(b"\x00")
         print("Raw received:", list(bufferIn))
+        print("Raw received wit x00 removed: ", bufferIn[:-1])
         try:
-            decoded = cobs.decode(bufferIn)
+            decoded = cobs.decode(bufferIn[:-1])
         except Exception:
             return
         print("Decoded: ", list(decoded))
