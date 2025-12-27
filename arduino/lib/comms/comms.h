@@ -1,5 +1,8 @@
 #pragma once
 
+#include <Arduino.h>
+#include <PacketSerial.h>
+
 #ifndef Arduino_h
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
