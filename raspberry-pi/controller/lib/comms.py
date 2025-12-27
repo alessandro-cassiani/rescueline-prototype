@@ -85,6 +85,7 @@ class Communication:
             decoded = cobs.decode(bufferIn)
         except Exception:
             return
+        print("Decoded: ", list(decoded))
         
         self.__packetBuffer = decoded
         self.__packetLength = len(decoded)
@@ -94,18 +95,29 @@ class Communication:
         if not self.__hasPacket: return None
         if self.__packetLength < 4: return None
 
+        print("Passed hasPacket test")
+
         cmd, length = struct.unpack(">BB", self.__packetBuffer[:2])
         length = int(length)
         cmd = int(cmd)
 
+        print("Command and length", cmd, length)
+
         if length + 4 != self.__packetLength: return None
+
+        print("Passed length equal test")
 
         payload = list(struct.unpack(f">{length}B", self.__packetBuffer[2:(2 + length)]))
         message = [cmd, length] + payload
 
+        print("Payload unpacked")
+        print(f"Message: {list(message)}")
+
         crcReceived = self.__packetBuffer[-2] << 8 | (self.__packetBuffer[-1] &0xFF) & 0xFFFF
 
         crcRecalculated = crc16_lsb(message, length + 2)
+
+        print(f"Crc received: {crcReceived}, Crc recalculated: {crcRecalculated}")
         if crcReceived != crcRecalculated: 
             print("Crc error")
             return None
