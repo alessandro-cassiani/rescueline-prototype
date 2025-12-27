@@ -70,7 +70,7 @@ class Communication:
         buffer = bytes(buffer)
         buffer += crc.to_bytes(2, byteorder="big")
 
-        encodedBuf = cobs.encode(buffer)
+        encodedBuf = cobs.encode(buffer) + b"\0x00"
         self.__ser.write(encodedBuf)
 
         return True
@@ -100,17 +100,18 @@ class Communication:
         if length + 4 != self.__packetLength: return None
 
         payload = list(struct.unpack(f">{length}B", self.__packetBuffer[2:(2 + length)]))
+        message = [cmd, length] + payload
 
         crcReceived = self.__packetBuffer[-2] << 8 | (self.__packetBuffer[-1] &0xFF) & 0xFFFF
 
-        crcRecalculated = crc16_lsb(payload, length)
+        crcRecalculated = crc16_lsb(message, length + 2)
         if crcReceived != crcRecalculated: 
             print("Crc error")
             return None
 
         self.__hasPacket = False
 
-        return [cmd, length] + payload
+        return message
     
     def endSerial(self) -> None:
         self.__ser.close()

@@ -39,7 +39,7 @@ bool Communication::sendPacket(const uint8_t cmd, uint8_t length, const uint8_t 
     memcpy(&buffer[2], payload, length);
 
     uint16_t crc = crc16_lsb(buffer, length + 2);
-    buffer[length + 2] = crc << 8;
+    buffer[length + 2] = (crc >> 8) & 0xFF;
     buffer[length + 3] = crc & 0xFF;
 
     packetSerial.send(buffer, length + 4);
@@ -57,8 +57,8 @@ bool Communication::readPacket(uint8_t *cmd, uint8_t *length, uint8_t *payload) 
 
     memcpy(payload, &packetBuffer[2], *length);
 
-    uint16_t crcReceived = (packetBuffer[*length - 2] << 8  | packetBuffer[*length - 1]) & 0xFFFF;
-    uint16_t crcRecalculated = crc16_lsb(packetBuffer, *length - 2);
+    uint16_t crcReceived = (packetBuffer[packetLength - 2] << 8  | packetBuffer[packetLength - 1]) & 0xFFFF;
+    uint16_t crcRecalculated = crc16_lsb(packetBuffer, packetLength - 2);
 
     if (crcRecalculated != crcReceived) {
         hasPacket = false;
