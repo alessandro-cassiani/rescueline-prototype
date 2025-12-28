@@ -29,15 +29,15 @@ void loop() {
 	if (readStatus) {
 		switch (cmd)
 		{
-			case Commands::RETURN_SENT_PACKET:
+			case RETURN_SENT_PACKET:
 			commsHandler.sendPacket(cmd, length, payload);
 			break;
 
-			case Commands::START_LED_BLINK:
+			case START_LED_BLINK:
 			blink = true;
 			break;
 
-			case Commands::STOP_LED_BLINK:
+			case STOP_LED_BLINK:
 			blink = false;
 			break;
 		}
