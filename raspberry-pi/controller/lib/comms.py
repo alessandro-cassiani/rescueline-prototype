@@ -110,6 +110,7 @@ class Communication:
 
         if crcReceived != crcRecalculated:
             print("Crc error!")
+            self.__hasPacket = False
             return None
         
         self.__hasPacket = False
