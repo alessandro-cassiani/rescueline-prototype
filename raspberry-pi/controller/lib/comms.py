@@ -59,23 +59,7 @@ class Communication:
         time.sleep(3)
         self.__ser.reset_input_buffer()
     
-    def sendPacket(self, cmd: str, length: int, payload: list[int]) -> bool:
-        if length + 4 >= MAX_BUFFER_LENGTH:
-            return False
-        
-        buffer = [ord(cmd), length] + payload
-
-        crc = crc16_lsb(buffer, length + 2)
-
-        buffer = bytes(buffer)
-        buffer += crc.to_bytes(2, byteorder="big")
-
-        encodedBuf = cobs.encode(buffer) + b"\x00"
-        self.__ser.write(encodedBuf)
-
-        return True
-    
-    def sendPacketBytesPayload(self, cmd: str, length: int, payload: bytes) -> bool:
+    def sendPacket(self, cmd: str, length: int, payload: bytes) -> bool:
         if length + 4 >= MAX_BUFFER_LENGTH: return False
 
         buffer = struct.pack(">BB", ord(cmd), length)
@@ -108,43 +92,8 @@ class Communication:
         self.__packetBuffer = decoded
         self.__packetLength = len(decoded)
         self.__hasPacket = True
-
-    def readPacket(self) -> None | list[int]:
-        if not self.__hasPacket: return None
-        if self.__packetLength < 4: return None
-
-        #print("Passed hasPacket test")
-
-        cmd, length = struct.unpack(">BB", self.__packetBuffer[:2])
-        length = int(length)
-        cmd = int(cmd)
-
-        #print("Command and length", cmd, length)
-
-        if length + 4 != self.__packetLength: return None
-
-        #print("Passed length equal test")
-
-        payload = list(struct.unpack(f">{length}B", self.__packetBuffer[2:(2 + length)]))
-        message = [cmd, length] + payload
-
-        #print("Payload unpacked")
-        #print(f"Message: {list(message)}")
-
-        crcReceived = self.__packetBuffer[-2] << 8 | (self.__packetBuffer[-1] &0xFF) & 0xFFFF
-
-        crcRecalculated = crc16_lsb(message, length + 2)
-
-        #print(f"Crc received: {crcReceived}, Crc recalculated: {crcRecalculated}")
-        if crcReceived != crcRecalculated: 
-            print("Crc error")
-            return None
-
-        self.__hasPacket = False
-
-        return message
     
-    def readPacketToBytes(self) -> None | bytes:
+    def readPacket(self) -> None | bytes:
         if not self.__hasPacket: return None
         if self.__packetLength < 4: return None
 

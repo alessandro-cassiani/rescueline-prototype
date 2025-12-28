@@ -20,10 +20,10 @@ def main() -> None:
             commsHandler.update()
 
             if not hasSent:
-                hasSent = commsHandler.sendPacketBytesPayload(Commands.RETURN_SENT_PACKET.value, len(toSend), toSend)
+                hasSent = commsHandler.sendPacket(Commands.RETURN_SENT_PACKET.value, len(toSend), toSend)
                 if hasSent: print("Sent.\n")
             
-            receivedMessage = commsHandler.readPacketToBytes()
+            receivedMessage = commsHandler.readPacket()
             if not receivedMessage is None:
                 print("Packet received:")
                 cmd = chr(int(receivedMessage[0]))
@@ -33,6 +33,7 @@ def main() -> None:
                 print(f"payload: {payload}\n")
                 hasSent = False
                 time.sleep(0.5)
+                receivedMessage = None
 
     except KeyboardInterrupt:
         commsHandler.endSerial()
