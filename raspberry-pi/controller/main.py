@@ -10,7 +10,8 @@ class Commands(Enum):
 def main() -> None:
     commsHandler = comms.Communication("/dev/ttyACM0", 115200)
 
-    toSend = [1, 2, 3, 4]
+    toSend = bytes(580)
+    print(f"Trying to send: {toSend}")
     hasSent = False
 
     try:
@@ -18,17 +19,17 @@ def main() -> None:
             commsHandler.update()
 
             if not hasSent:
-                hasSent = commsHandler.sendPacket(Commands.RETURN_SENT_PACKET.value, len(toSend), toSend)
+                hasSent = commsHandler.sendPacketBytesPayload(Commands.RETURN_SENT_PACKET.value, len(toSend), toSend)
                 if hasSent: print("Sent.\n")
             
-            receivedPacket = commsHandler.readPacket()
-            if not receivedPacket is None:
-                print("Packet received: \n")
-                cmd = chr(receivedPacket[0])
-                length = receivedPacket[1]
-                payload = receivedPacket[2:]
-                print(f"cmd: {cmd}\t length: {length}\n")
-                print(f"payload: {payload}")
+            receivedMessage = commsHandler.readPacketToBytes()
+            if not receivedMessage is None:
+                print("Packet received:")
+                cmd = chr(int(receivedMessage[0]))
+                length = int(receivedMessage[1])
+                payload = int(receivedMessage[2:])
+                print(f"cmd: {cmd}\t length: {length}")
+                print(f"payload: {payload}\n")
                 hasSent = False
                 time.sleep(0.5)
 

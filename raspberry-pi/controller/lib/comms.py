@@ -75,6 +75,20 @@ class Communication:
 
         return True
     
+    def sendPacketBytesPayload(self, cmd: str, length: int, payload: bytes) -> bool:
+        if length + 4 >= MAX_BUFFER_LENGTH: return False
+
+        buffer = struct.pack(">BB", ord(cmd), length)
+        buffer += payload
+
+        crc = crc16_lsb(list(buffer), length + 2)
+        buffer += crc.to_bytes(2, byteorder="big")
+
+        encodedBuf = cobs.encode(buffer) + b"\x00"
+        self.__ser.write(encodedBuf)
+
+        return True
+
     # Stripping the trailing x00 character BEFORE decoding with
     # the cobs library is extremely important, as it is made to consider
     # it as part of the payload if not removed
@@ -128,6 +142,29 @@ class Communication:
 
         self.__hasPacket = False
 
+        return message
+    
+    def readPacketToBytes(self) -> None | bytes:
+        if not self.__hasPacket: return None
+        if self.__packetLength < 4: return None
+
+        cmd, length = struct.unpack(">BB", self.__packetBuffer[:2])
+
+        if length + 4 != self.__packetLength: return None
+
+        payload = self.__packetBuffer[2:(2 + length)]
+
+        message = bytes((cmd, length)) + payload
+
+        crcReceived = self.__packetBuffer[-2] << 8 | (self.__packetBuffer[-1] &0xFF) & 0xFFFF
+        crcRecalculated = crc16_lsb(list(message), length + 2)
+
+        if crcReceived != crcRecalculated:
+            print("Crc error!")
+            return None
+        
+        self.__hasPacket = False
+        
         return message
     
     def endSerial(self) -> None:
