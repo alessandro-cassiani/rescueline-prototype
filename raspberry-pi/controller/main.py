@@ -10,7 +10,8 @@ class Commands(Enum):
 def main() -> None:
     commsHandler = comms.Communication("/dev/ttyACM0", 115200)
 
-    toSend = bytes(580)
+    toSend = 580
+    toSend = toSend.to_bytes(2, byteorder="big")
     print(f"Trying to send: {toSend}")
     hasSent = False
 
@@ -27,7 +28,7 @@ def main() -> None:
                 print("Packet received:")
                 cmd = chr(int(receivedMessage[0]))
                 length = int(receivedMessage[1])
-                payload = int(receivedMessage[2:])
+                payload = int.from_bytes(receivedMessage[2:], byteorder="big")
                 print(f"cmd: {cmd}\t length: {length}")
                 print(f"payload: {payload}\n")
                 hasSent = False
