@@ -2,8 +2,24 @@ import serial
 from cobs import cobs
 import struct
 import time
+from dataclasses import dataclass
+from typing import Optional, Tuple, List
+import threading
+import logging
 
+commsLogger = logging.getLogger(__name__)
+logging.basicConfig(
+    encoding="utf-8",
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S" 
+)
+commsLogger.debug("Logger has been set up")
+
+
+"""
 # Set true to enable debug
+# Decomment main() to run local tests
 DEBUG = False
 
 CRC_16_CCITT_POLYNOMIAL = 0x1021 & 0xFFFF
@@ -48,16 +64,30 @@ def debug_crc() -> None:
     print(crc_msb, crc_lsb)
 
 class Communication:
-    def __init__(self, port="/dev/ttyACM0", speed=115200) -> None:
+    def __init__(self, port: str = "/dev/ttyACM0", speed: int = 115200,
+                 timeout: float = 1.0, reconnect_attempts: int = 3) -> None:
         self.__port = port
-        self.__speed = speed
-        self.__ser = serial.Serial(port, speed, timeout=1.0)
-        self.__packetBuffer = b""
-        self.__hasPacket = False
-        self.__packetLength = 0
+        self.__baudrate = speed
+        self.__timeout = timeout
+        self.__reconnect_attempts = reconnect_attempts
 
-        time.sleep(3)
-        self.__ser.reset_input_buffer()
+        self.__serial = None
+        self.__received_buffer = bytearray()
+        self.__packet_queue = []
+        self.__hasPacket = False
+    
+    def initiate_communication(self) -> bool:
+        for attempt in range(self.__reconnect_attempts):
+            try:
+                self.__serial = serial.Serial(
+                    port=self.__port,
+                    baudrate=self.__baudrate,
+                    timeout=self.__timeout
+                )
+                time.sleep(3)
+                self.__serial.reset_input_buffer()
+                commsLogger.info(f"Connected to {self.__port} at baudrate {self.__baudrate}")
+
     
     def sendPacket(self, cmd: str, length: int, payload: bytes) -> bool:
         if length + 4 >= MAX_BUFFER_LENGTH: return False
@@ -129,3 +159,4 @@ class Communication:
 #    main()
 
 
+"""
