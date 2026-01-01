@@ -16,8 +16,6 @@ logging.basicConfig(
 )
 commsLogger.debug("Logger has been set up")
 
-
-"""
 # Set true to enable debug
 # Decomment main() to run local tests
 DEBUG = False
@@ -76,6 +74,9 @@ class Communication:
         self.__packet_queue = []
         self.__hasPacket = False
     
+    # The function attempts to connect at the selected port
+    # Retries a specified amount of times
+    # Returns `true` or `false`
     def initiate_communication(self) -> bool:
         for attempt in range(self.__reconnect_attempts):
             try:
@@ -87,7 +88,13 @@ class Communication:
                 time.sleep(3)
                 self.__serial.reset_input_buffer()
                 commsLogger.info(f"Connected to {self.__port} at baudrate {self.__baudrate}")
-
+                return True
+            except:
+                commsLogger.warning(f"Failed attempt {attempt + 1} to connect")
+                time.sleep(1)
+        
+        commsLogger.error(f"Couldn't connect to serial communication after {self.__reconnect_attempts} attempts")
+        return False
     
     def sendPacket(self, cmd: str, length: int, payload: bytes) -> bool:
         if length + 4 >= MAX_BUFFER_LENGTH: return False
@@ -157,6 +164,3 @@ class Communication:
 
 #if __name__ == "__main__":
 #    main()
-
-
-"""
