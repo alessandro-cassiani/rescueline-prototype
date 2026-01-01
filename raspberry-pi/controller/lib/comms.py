@@ -82,7 +82,7 @@ class Communication:
         self.__reconnect_attempts = reconnect_attempts
 
         self.__ser = None
-        self.__buffer = bytearray()
+        self.__buffer = b""
         self.__packet_queue = Queue(maxsize=50)
         self.__hasPacket = False
     
@@ -108,6 +108,8 @@ class Communication:
         commsLogger.error(f"Couldn't connect to serial communication after {self.__reconnect_attempts} attempts")
         return False
     
+    # Send a packet
+    # Default is to return the sent packet, which is an empty bytes object
     def send_packet(self, cmd: str = 'r', payload: bytes = b"") -> bool:
         if not self.__ser or not self.__ser.is_open:
             commsLogger.error("Serial port not open, can't send packet")
@@ -133,9 +135,7 @@ class Communication:
             commsLogger.error(f"Failed to send packet: {e}")
             return False
 
-    # Stripping the trailing x00 character BEFORE decoding with
-    # the cobs library is extremely important, as it is made to consider
-    # it as part of the payload if not removed
+    # Update the buffer by appending any new data from serial
     def update_buffer(self) -> bool:
         if not self.__ser or not self.__ser.is_open:
             commsLogger.error("Serial port not open, can't update packets")
@@ -158,6 +158,7 @@ class Communication:
             commsLogger.error(f"Error: couldn't read serial: {e}")
             return False
     
+    # Returns a Packet object if the inputtet packet was not corrupted
     def __extract_from_packet(self, packet: bytes) -> Optional[Packet]:
         packet_length = len(packet)
         cmd_int, payload_length = struct.unpack(">BB", packet[:2])
@@ -180,6 +181,11 @@ class Communication:
 
         return output_packet
     
+    # Decode data that is encoded with cobs
+    # Returns none if it's unable to encode
+    # Stripping the trailing x00 character BEFORE decoding with
+    # the cobs library is extremely important, as it is made to consider
+    # it as part of the buffer if not removed
     def __decode_cobs(self, encoded_packet: bytes) -> Optional[bytes]:
         try:
             decoded_packet = cobs.decode(encoded_packet)
@@ -188,15 +194,29 @@ class Communication:
             logging.warning(f"Cobs decode error: {e}")
             return None
 
-        
+    # Insert the first received message in the buffer into the packet queue
+    # If no delimiter is found, reset the buffer
     def __update_packet_queue(self) -> bool:
         if not COBS_DELIMITER in self.__buffer:
             self.__buffer = b""
             return False
         
-        #delimiter_index = self.__buffer.index(COBS_DELIMITER)
-            
-            
+        delimiter_index = self.__buffer.index(COBS_DELIMITER)
+        
+        decoded_packet = self.__decode_cobs(self.__buffer[:delimiter_index])
+        if decoded_packet is None:
+            return False
+        
+        self.__buffer = self.__buffer[delimiter_index + 1:]
+        
+        packet_object = self.__extract_from_packet(decoded_packet)
+        if decoded_packet is None:
+            return False
+        
+        self.__packet_queue.put(packet_object)
+        commsLogger.info("Added oldest received packet to packet queue")
+
+        return True
     
     def readPacket(self) -> None | bytes:
         if not self.__hasPacket: return None
