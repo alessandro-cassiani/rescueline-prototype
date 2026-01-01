@@ -16,6 +16,15 @@ logging.basicConfig(
 )
 commsLogger.debug("Logger has been set up")
 
+@dataclass
+class Packet:
+    command: str
+    payload: bytes
+    
+    @property
+    def length(self) -> int:
+        return len(self.payload)
+
 # Set true to enable debug
 # Decomment main() to run local tests
 DEBUG = False
@@ -69,7 +78,7 @@ class Communication:
         self.__timeout = timeout
         self.__reconnect_attempts = reconnect_attempts
 
-        self.__serial = None
+        self.__ser = None
         self.__received_buffer = bytearray()
         self.__packet_queue = []
         self.__hasPacket = False
@@ -80,13 +89,13 @@ class Communication:
     def initiate_communication(self) -> bool:
         for attempt in range(self.__reconnect_attempts):
             try:
-                self.__serial = serial.Serial(
+                self.__ser = serial.Serial(
                     port=self.__port,
                     baudrate=self.__baudrate,
                     timeout=self.__timeout
                 )
                 time.sleep(3)
-                self.__serial.reset_input_buffer()
+                self.__ser.reset_input_buffer()
                 commsLogger.info(f"Connected to {self.__port} at baudrate {self.__baudrate}")
                 return True
             except:
@@ -96,19 +105,30 @@ class Communication:
         commsLogger.error(f"Couldn't connect to serial communication after {self.__reconnect_attempts} attempts")
         return False
     
-    def sendPacket(self, cmd: str, length: int, payload: bytes) -> bool:
-        if length + 4 >= MAX_BUFFER_LENGTH: return False
+    def send_packet(self, cmd: str = 'r', payload: bytes = b"") -> bool:
+        if not self.__ser or not self.__ser.is_open:
+            commsLogger.error("Serial port not open, can't send packet")
+            return False
+        
+        payload_length = len(payload)
+        if payload_length + 4 >= MAX_BUFFER_LENGTH:
+            commsLogger.error("Payload too long, can't sent packet")
+            return False
 
-        buffer = struct.pack(">BB", ord(cmd), length)
+        buffer = struct.pack(">BB", ord(cmd), payload_length)
         buffer += payload
 
-        crc = crc16_lsb(list(buffer), length + 2)
-        buffer += crc.to_bytes(2, byteorder="big")
-
-        encodedBuf = cobs.encode(buffer) + b"\x00"
-        self.__ser.write(encodedBuf)
-
-        return True
+        crc = crc16_lsb(list(buffer), payload_length + 2)
+        buffer += struct.pack(">H", crc)
+        encoded_buffer = cobs.encode(buffer) + b"\x00"
+        
+        try:
+            self.__ser.write(encoded_buffer)
+            commsLogger.info(f"Sent packet: cmd: {cmd}, len: {payload_length}")
+            return True
+        except serial.SerialException as e:
+            commsLogger.error(f"Failed to send packet: {e}")
+            return False
 
     # Stripping the trailing x00 character BEFORE decoding with
     # the cobs library is extremely important, as it is made to consider
