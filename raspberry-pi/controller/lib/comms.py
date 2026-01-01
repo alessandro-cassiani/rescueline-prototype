@@ -7,6 +7,16 @@ from typing import Optional, Tuple, List
 import threading
 import logging
 
+# Set true to enable debug
+# Decomment main() to run local tests
+DEBUG = False
+
+CRC_16_CCITT_POLYNOMIAL = 0x1021 & 0xFFFF
+CRC_16_CCITT_POLYNOMIAL_REVERSED = 0x8408 & 0xFFFF
+BYTE_SIZE = 8
+MAX_BUFFER_LENGTH = 255
+COBS_DELIMITER = b"\x00"
+
 commsLogger = logging.getLogger(__name__)
 logging.basicConfig(
     encoding="utf-8",
@@ -24,15 +34,6 @@ class Packet:
     @property
     def length(self) -> int:
         return len(self.payload)
-
-# Set true to enable debug
-# Decomment main() to run local tests
-DEBUG = False
-
-CRC_16_CCITT_POLYNOMIAL = 0x1021 & 0xFFFF
-CRC_16_CCITT_POLYNOMIAL_REVERSED = 0x8408 & 0xFFFF
-BYTE_SIZE = 8
-MAX_BUFFER_LENGTH = 255
 
 def crc16_msb(data: list[int], length: int) -> int:
     rem = 0xFFFF
@@ -79,7 +80,7 @@ class Communication:
         self.__reconnect_attempts = reconnect_attempts
 
         self.__ser = None
-        self.__received_buffer = bytearray()
+        self.__buffer = bytearray()
         self.__packet_queue = []
         self.__hasPacket = False
     
@@ -120,7 +121,7 @@ class Communication:
 
         crc = crc16_lsb(list(buffer), payload_length + 2)
         buffer += struct.pack(">H", crc)
-        encoded_buffer = cobs.encode(buffer) + b"\x00"
+        encoded_buffer = cobs.encode(buffer) + COBS_DELIMITER
         
         try:
             self.__ser.write(encoded_buffer)
@@ -133,22 +134,28 @@ class Communication:
     # Stripping the trailing x00 character BEFORE decoding with
     # the cobs library is extremely important, as it is made to consider
     # it as part of the payload if not removed
-    def update(self) -> None:
-        if (self.__ser.in_waiting <= 0):
-            return
+    def update(self) -> bool:
+        if not self.__ser or not self.__ser.is_open:
+            commsLogger.error("Serial port not open, can't update packets")
+            return False
         
-        bufferIn = self.__ser.read_until(b"\x00")
-        #print("Raw received:", list(bufferIn))
-        #print("Raw received wit x00 removed: ", bufferIn[:-1])
+        if self.__ser.in_waiting <= 0:
+            commsLogger.debug("Nothing new in serial")
+            return False
+        
         try:
-            decoded = cobs.decode(bufferIn[:-1])
-        except Exception:
-            return
-        #print("Decoded: ", list(decoded))
-        
-        self.__packetBuffer = decoded
-        self.__packetLength = len(decoded)
-        self.__hasPacket = True
+            incoming_buffer = self.__ser.read(self.__ser.in_waiting)
+            commsLogger.debug(f"Raw received buffer: {incoming_buffer}")
+
+            #decoded_packet = cobs.decode(incoming_buffer[:-1])
+            #commsLogger.debug(f"Decoded packet: {decoded_packet}")
+            
+            self.__buffer.extend(incoming_buffer)
+            return True
+        except serial.SerialException as e:
+            commsLogger.error(f"Error: couldn't read serial: {e}")
+            return False
+            
     
     def readPacket(self) -> None | bytes:
         if not self.__hasPacket: return None
