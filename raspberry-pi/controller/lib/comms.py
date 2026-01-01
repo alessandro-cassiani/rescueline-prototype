@@ -179,13 +179,22 @@ class Communication:
         output_packet = Packet(chr(cmd_int), payload)
 
         return output_packet
+    
+    def __decode_cobs(self, encoded_packet: bytes) -> Optional[bytes]:
+        try:
+            decoded_packet = cobs.decode(encoded_packet)
+            return decoded_packet
+        except cobs.DecodeError as e:
+            logging.warning(f"Cobs decode error: {e}")
+            return None
+
         
     def __update_packet_queue(self) -> bool:
         if not COBS_DELIMITER in self.__buffer:
             self.__buffer = b""
             return False
         
-        return False
+        #delimiter_index = self.__buffer.index(COBS_DELIMITER)
             
             
     
