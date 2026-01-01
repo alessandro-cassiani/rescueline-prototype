@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, List
 import threading
 import logging
+from queue import Queue
 
 # Set true to enable debug
 # Decomment main() to run local tests
@@ -16,6 +17,7 @@ CRC_16_CCITT_POLYNOMIAL_REVERSED = 0x8408 & 0xFFFF
 BYTE_SIZE = 8
 MAX_BUFFER_LENGTH = 255
 COBS_DELIMITER = b"\x00"
+MAX_PACKET_QUEUE_SIZE = 50
 
 commsLogger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -81,7 +83,7 @@ class Communication:
 
         self.__ser = None
         self.__buffer = bytearray()
-        self.__packet_queue = []
+        self.__packet_queue = Queue(maxsize=50)
         self.__hasPacket = False
     
     # The function attempts to connect at the selected port
@@ -134,7 +136,7 @@ class Communication:
     # Stripping the trailing x00 character BEFORE decoding with
     # the cobs library is extremely important, as it is made to consider
     # it as part of the payload if not removed
-    def update(self) -> bool:
+    def update_buffer(self) -> bool:
         if not self.__ser or not self.__ser.is_open:
             commsLogger.error("Serial port not open, can't update packets")
             return False
@@ -150,11 +152,41 @@ class Communication:
             #decoded_packet = cobs.decode(incoming_buffer[:-1])
             #commsLogger.debug(f"Decoded packet: {decoded_packet}")
             
-            self.__buffer.extend(incoming_buffer)
+            self.__buffer += incoming_buffer
             return True
         except serial.SerialException as e:
             commsLogger.error(f"Error: couldn't read serial: {e}")
             return False
+    
+    def __extract_from_packet(self, packet: bytes) -> Optional[Packet]:
+        packet_length = len(packet)
+        cmd_int, payload_length = struct.unpack(">BB", packet[:2])
+
+        if payload_length + 4 != packet_length:
+            commsLogger.warning("Packet length and payload length don't match")
+            return None
+        
+        message = packet[:(2 + payload_length)]
+        payload = packet[2:(2 + payload_length)]
+        
+        received_crc = struct.unpack(">H", packet[-2:])
+        recalculated_crc = crc16_lsb(list(message), payload_length + 2)
+
+        if received_crc != recalculated_crc:
+            commsLogger.warning(f"Crc mismatch: received: {received_crc}, calculated: {recalculated_crc}")
+            return None
+        
+        output_packet = Packet(chr(cmd_int), payload)
+
+        return output_packet
+        
+    def __update_packet_queue(self) -> bool:
+        if not COBS_DELIMITER in self.__buffer:
+            self.__buffer = b""
+            return False
+        
+        return False
+            
             
     
     def readPacket(self) -> None | bytes:
