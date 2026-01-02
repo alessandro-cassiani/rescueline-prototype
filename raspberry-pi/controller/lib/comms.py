@@ -228,7 +228,7 @@ class Communication:
             if keep_updating_queue:
                 was_queue_updated = True
         
-        return was_buffer_updated and was_queue_updated 
+        return was_buffer_updated or was_queue_updated 
     
     def get_packet(self) -> Optional[Packet]:
         if self._packet_queue.empty(): return None
