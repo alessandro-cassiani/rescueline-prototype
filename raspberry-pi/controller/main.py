@@ -21,7 +21,9 @@ class Commands(Enum):
 
 def main() -> None:
     comms_handler = Communication("/dev/ttyACM0", 115200)
-
+    if not comms_handler.initiate_communication():
+        return
+    
     to_send = struct.pack(">H", 580)
     mainLogger.debug(f"Payload to send: {to_send}")
     has_sent = False
