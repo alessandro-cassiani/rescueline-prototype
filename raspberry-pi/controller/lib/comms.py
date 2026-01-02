@@ -4,7 +4,6 @@ import struct
 import time
 from dataclasses import dataclass
 from typing import Optional, Tuple, List
-import threading
 import logging
 from queue import Queue
 
