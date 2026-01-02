@@ -136,7 +136,7 @@ class Communication:
             return False
 
     # Update the buffer by appending any new data from serial
-    def update_buffer(self) -> bool:
+    def __update_buffer(self) -> bool:
         if not self.__ser or not self.__ser.is_open:
             commsLogger.error("Serial port not open, can't update packets")
             return False
@@ -217,6 +217,18 @@ class Communication:
         commsLogger.info("Added oldest received packet to packet queue")
 
         return True
+    
+    def update(self) -> bool:
+        was_buffer_updated = self.__update_buffer()
+        was_queue_updated = False
+
+        keep_updating_queue = True
+        while keep_updating_queue:
+            keep_updating_queue = self.__update_packet_queue()
+            if keep_updating_queue:
+                was_queue_updated = True
+        
+        return was_buffer_updated and was_queue_updated 
     
     def get_packet(self) -> Optional[Packet]:
         if self.__packet_queue.empty: return None
