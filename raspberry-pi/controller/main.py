@@ -38,8 +38,8 @@ def main() -> None:
             received_packet = comms_handler.get_packet()
             if not received_packet is None:
                 mainLogger.debug("Received packet")
-                print(f"cmd: {received_packet.command}\t length: {received_packet.length}")
-                print(f"payload: {int(received_packet.payload)}\n")
+                mainLogger.debug(f"cmd: {received_packet.command}\t length: {received_packet.length}")
+                mainLogger.debug(f"payload: {int(received_packet.payload)}\n")
                 has_sent = False
                 time.sleep(1)
                 received_packet = None
