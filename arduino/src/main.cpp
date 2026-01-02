@@ -10,6 +10,8 @@ enum Commands {
 Communication commsHandler;
 
 bool blink = false;
+bool blinkState = 0;
+uint64_t lastBlinkTime = 0;
 void blinkLed(const uint32_t interval);
 
 void setup() {
@@ -49,8 +51,12 @@ void loop() {
 }
 
 void blinkLed(const uint32_t interval) {
-	digitalWrite(LED_BUILTIN, HIGH);
-	delay(interval);
-	digitalWrite(LED_BUILTIN, LOW);
-	delay(interval);
+	uint64_t currentTime = millis();
+	uint64_t timeSinceLastBlink = currentTime - lastBlinkTime;
+
+	if (timeSinceLastBlink > interval) {
+		blinkState = !blinkState;
+		digitalWrite(LED_BUILTIN, blinkState);
+		lastBlinkTime = currentTime;
+	}
 }
