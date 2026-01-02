@@ -231,7 +231,7 @@ class Communication:
         return was_buffer_updated and was_queue_updated 
     
     def get_packet(self) -> Optional[Packet]:
-        if self._packet_queue.empty: return None
+        if self._packet_queue.empty(): return None
         
         top_packet = self._packet_queue.get()
         commsLogger.info(f"Popped packet cmd: {top_packet.cmd}, length: {top_packet.length}")
