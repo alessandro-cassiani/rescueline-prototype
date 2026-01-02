@@ -218,32 +218,23 @@ class Communication:
 
         return True
     
-    def readPacket(self) -> None | bytes:
-        if not self.__hasPacket: return None
-        if self.__packetLength < 4: return None
-
-        cmd, length = struct.unpack(">BB", self.__packetBuffer[:2])
-
-        if length + 4 != self.__packetLength: return None
-
-        payload = self.__packetBuffer[2:(2 + length)]
-
-        message = bytes((cmd, length)) + payload
-
-        crcReceived = self.__packetBuffer[-2] << 8 | (self.__packetBuffer[-1] &0xFF) & 0xFFFF
-        crcRecalculated = crc16_lsb(list(message), length + 2)
-
-        if crcReceived != crcRecalculated:
-            print("Crc error!")
-            self.__hasPacket = False
-            return None
+    def get_packet(self) -> Optional[Packet]:
+        if self.__packet_queue.empty: return None
         
-        self.__hasPacket = False
-        
-        return message
+        top_packet = self.__packet_queue.get()
+        commsLogger.info(f"Popped packet cmd: {top_packet.cmd}, length: {top_packet.length}")
+
+        return top_packet
+
     
-    def endSerial(self) -> None:
+    def end_serial(self) -> bool:
+        if not self.__ser or not self.__ser.is_open:
+            commsLogger.error("Serial port not open, can't close serial")
+            return False
+        
         self.__ser.close()
+        commsLogger.info("Closed serial communication")
+        return True
     
     
 #def main() -> None:
