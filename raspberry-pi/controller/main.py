@@ -1,6 +1,18 @@
-from lib import comms
+from lib.comms import Communication
+from lib.comms import Packet
 from enum import Enum
 import time
+import struct
+import logging
+
+mainLogger = logging.getLogger(__name__)
+logging.basicConfig(
+    encoding="utf-8",
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S" 
+)
+mainLogger.debug(f"Logger {__name__} has been set up")
 
 class Commands(Enum):
     START_LED_BLINK = 'b'
@@ -8,35 +20,30 @@ class Commands(Enum):
     RETURN_SENT_PACKET = 'r'
 
 def main() -> None:
-    commsHandler = comms.Communication("/dev/ttyACM0", 115200)
+    comms_handler = Communication("/dev/ttyACM0", 115200)
 
-    toSend = 580
-    toSend = toSend.to_bytes(2, byteorder="big")
-    print(f"Trying to send: {toSend}")
-    hasSent = False
+    to_send = struct.pack(">H", 580)
+    mainLogger.debug(f"Payload to send: {to_send}")
+    has_sent = False
 
     try:
         while True:
-            commsHandler.update()
+            comms_handler.update()
 
-            if not hasSent:
-                hasSent = commsHandler.sendPacket(Commands.RETURN_SENT_PACKET.value, len(toSend), toSend)
-                if hasSent: print("Sent.\n")
+            if not has_sent:
+                has_sent = comms_handler.send_packet(Commands.RETURN_SENT_PACKET.value, to_send)
             
-            receivedMessage = commsHandler.readPacket()
-            if not receivedMessage is None:
-                print("Packet received:")
-                cmd = chr(int(receivedMessage[0]))
-                length = int(receivedMessage[1])
-                payload = int.from_bytes(receivedMessage[2:], byteorder="big")
-                print(f"cmd: {cmd}\t length: {length}")
-                print(f"payload: {payload}\n")
-                hasSent = False
-                time.sleep(0.5)
-                receivedMessage = None
+            received_packet = comms_handler.get_packet()
+            if not received_packet is None:
+                mainLogger.debug("Received packet")
+                print(f"cmd: {received_packet.command}\t length: {received_packet.length}")
+                print(f"payload: {int(received_packet.payload)}\n")
+                has_sent = False
+                time.sleep(1)
+                received_packet = None
 
     except KeyboardInterrupt:
-        commsHandler.endSerial()
+        comms_handler.end_serial()
 
 
 if __name__ == "__main__":
