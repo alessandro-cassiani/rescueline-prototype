@@ -76,42 +76,42 @@ def debug_crc() -> None:
 class Communication:
     def __init__(self, port: str = "/dev/ttyACM0", speed: int = 115200,
                  timeout: float = 1.0, reconnect_attempts: int = 3) -> None:
-        self.__port = port
-        self.__baudrate = speed
-        self.__timeout = timeout
-        self.__reconnect_attempts = reconnect_attempts
+        self._port = port
+        self._baudrate = speed
+        self._timeout = timeout
+        self._reconnect_attempts = reconnect_attempts
 
-        self.__ser = None
-        self.__buffer = b""
-        self.__packet_queue = Queue(maxsize=50)
-        self.__hasPacket = False
+        self._ser = None
+        self._buffer = b""
+        self._packet_queue = Queue(maxsize=50)
+        self._hasPacket = False
     
     # The function attempts to connect at the selected port
     # Retries a specified amount of times
     # Returns `true` or `false`
     def initiate_communication(self) -> bool:
-        for attempt in range(self.__reconnect_attempts):
+        for attempt in range(self._reconnect_attempts):
             try:
-                self.__ser = serial.Serial(
-                    port=self.__port,
-                    baudrate=self.__baudrate,
-                    timeout=self.__timeout
+                self._ser = serial.Serial(
+                    port=self._port,
+                    baudrate=self._baudrate,
+                    timeout=self._timeout
                 )
                 time.sleep(3)
-                self.__ser.reset_input_buffer()
-                commsLogger.info(f"Connected to {self.__port} at baudrate {self.__baudrate}")
+                self._ser.reset_input_buffer()
+                commsLogger.info(f"Connected to {self._port} at baudrate {self._baudrate}")
                 return True
             except:
                 commsLogger.warning(f"Failed attempt {attempt + 1} to connect")
                 time.sleep(1)
         
-        commsLogger.error(f"Couldn't connect to serial communication after {self.__reconnect_attempts} attempts")
+        commsLogger.error(f"Couldn't connect to serial communication after {self._reconnect_attempts} attempts")
         return False
     
     # Send a packet
     # Default is to return the sent packet, which is an empty bytes object
     def send_packet(self, cmd: str = 'r', payload: bytes = b"") -> bool:
-        if not self.__ser or not self.__ser.is_open:
+        if not self._ser or not self._ser.is_open:
             commsLogger.error("Serial port not open, can't send packet")
             return False
         
@@ -128,7 +128,7 @@ class Communication:
         encoded_buffer = cobs.encode(buffer) + COBS_DELIMITER
         
         try:
-            self.__ser.write(encoded_buffer)
+            self._ser.write(encoded_buffer)
             commsLogger.info(f"Sent packet: cmd: {cmd}, len: {payload_length}")
             return True
         except serial.SerialException as e:
@@ -136,30 +136,30 @@ class Communication:
             return False
 
     # Update the buffer by appending any new data from serial
-    def __update_buffer(self) -> bool:
-        if not self.__ser or not self.__ser.is_open:
+    def _update_buffer(self) -> bool:
+        if not self._ser or not self._ser.is_open:
             commsLogger.error("Serial port not open, can't update packets")
             return False
         
-        if self.__ser.in_waiting <= 0:
+        if self._ser.in_waiting <= 0:
             commsLogger.debug("Nothing new in serial")
             return False
         
         try:
-            incoming_buffer = self.__ser.read(self.__ser.in_waiting)
+            incoming_buffer = self._ser.read(self._ser.in_waiting)
             commsLogger.debug(f"Raw received buffer: {incoming_buffer}")
 
             #decoded_packet = cobs.decode(incoming_buffer[:-1])
             #commsLogger.debug(f"Decoded packet: {decoded_packet}")
             
-            self.__buffer += incoming_buffer
+            self._buffer += incoming_buffer
             return True
         except serial.SerialException as e:
             commsLogger.error(f"Error: couldn't read serial: {e}")
             return False
     
     # Returns a Packet object if the inputtet packet was not corrupted
-    def __extract_from_packet(self, packet: bytes) -> Optional[Packet]:
+    def _extract_from_packet(self, packet: bytes) -> Optional[Packet]:
         packet_length = len(packet)
         cmd_int, payload_length = struct.unpack(">BB", packet[:2])
 
@@ -186,7 +186,7 @@ class Communication:
     # Stripping the trailing x00 character BEFORE decoding with
     # the cobs library is extremely important, as it is made to consider
     # it as part of the buffer if not removed
-    def __decode_cobs(self, encoded_packet: bytes) -> Optional[bytes]:
+    def _decode_cobs(self, encoded_packet: bytes) -> Optional[bytes]:
         try:
             decoded_packet = cobs.decode(encoded_packet)
             return decoded_packet
@@ -196,55 +196,55 @@ class Communication:
 
     # Insert the first received message in the buffer into the packet queue
     # If no delimiter is found, reset the buffer
-    def __update_packet_queue(self) -> bool:
-        if not COBS_DELIMITER in self.__buffer:
-            self.__buffer = b""
+    def _update_packet_queue(self) -> bool:
+        if not COBS_DELIMITER in self._buffer:
+            self._buffer = b""
             return False
         
-        delimiter_index = self.__buffer.index(COBS_DELIMITER)
+        delimiter_index = self._buffer.index(COBS_DELIMITER)
         
-        decoded_packet = self.__decode_cobs(self.__buffer[:delimiter_index])
+        decoded_packet = self._decode_cobs(self._buffer[:delimiter_index])
         if decoded_packet is None:
             return False
         
-        self.__buffer = self.__buffer[delimiter_index + 1:]
+        self._buffer = self._buffer[delimiter_index + 1:]
         
-        packet_object = self.__extract_from_packet(decoded_packet)
+        packet_object = self._extract_from_packet(decoded_packet)
         if decoded_packet is None:
             return False
         
-        self.__packet_queue.put(packet_object)
+        self._packet_queue.put(packet_object)
         commsLogger.info("Added oldest received packet to packet queue")
 
         return True
     
     def update(self) -> bool:
-        was_buffer_updated = self.__update_buffer()
+        was_buffer_updated = self._update_buffer()
         was_queue_updated = False
 
         keep_updating_queue = True
         while keep_updating_queue:
-            keep_updating_queue = self.__update_packet_queue()
+            keep_updating_queue = self._update_packet_queue()
             if keep_updating_queue:
                 was_queue_updated = True
         
         return was_buffer_updated and was_queue_updated 
     
     def get_packet(self) -> Optional[Packet]:
-        if self.__packet_queue.empty: return None
+        if self._packet_queue.empty: return None
         
-        top_packet = self.__packet_queue.get()
+        top_packet = self._packet_queue.get()
         commsLogger.info(f"Popped packet cmd: {top_packet.cmd}, length: {top_packet.length}")
 
         return top_packet
 
     
     def end_serial(self) -> bool:
-        if not self.__ser or not self.__ser.is_open:
+        if not self._ser or not self._ser.is_open:
             commsLogger.error("Serial port not open, can't close serial")
             return False
         
-        self.__ser.close()
+        self._ser.close()
         commsLogger.info("Closed serial communication")
         return True
     
